@@ -1,0 +1,358 @@
+---
+title: "Project_449"
+author: "Carlos Suarez"
+date: "2025-05-13"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### **1. State the problem and describe the data set**
+
+The provided dataset was download from www.kaggle.com. It is related to diabetes and contains various biomedical measurements and patient characteristics.
+
+This dataset has 1000 observations and 14 variables.
+
+Here's a detailed description of the dataset columns:
+
+- **ID:** A unique identifier for each record in the dataset.
+- **No_Pation:** Another identifier for the patient. It might be a patient number or record ID.
+- **Gender:** The gender of the patient (F for Female, M for Male).
+- **AGE:** The age of the patient in years.
+- **Urea:** Urea level in the blood (likely measured in mg/dL or mmol/L). Urea is a waste product of protein metabolism and can indicate kidney function.
+- **Cr:** Creatinine level in the blood (likely measured in mg/dL or µmol/L). Creatinine is another waste product that indicates kidney function.
+- **HbA1c:** Glycated hemoglobin, a measure of average blood sugar levels over the past 2-3 months (expressed as a percentage).
+- **Chol:** Cholesterol level in the blood (likely measured in mg/dL or mmol/L). This typically refers to total cholesterol.
+- **TG:** Triglycerides level in the blood (likely measured in mg/dL or mmol/L). Triglycerides are a type of fat in the blood.
+- **HDL:** High-density lipoprotein cholesterol level (often called "good" cholesterol, measured in mg/dL or mmol/L).
+- **LDL:** Low-density lipoprotein cholesterol level (often called "bad" cholesterol, measured in mg/dL or mmol/L).
+- **VLDL:** Very low-density lipoprotein cholesterol level (measured in mg/dL or mmol/L).
+- **BMI:** Body Mass Index, a measure of body fat based on height and weight (calculated as weight in kilograms divided by height in meters squared).
+- **CLASS:** The class label indicating the diabetes status of the patient. The possible values seem to be:
+
+  N: Non-diabetic
+  
+  P: Prediabetic
+  
+  Y: Diabetic
+
+
+```{r echo=TRUE}
+
+#https://www.kaggle.com/datasets/marshalpatel3558/diabetes-prediction-dataset-legit-dataset
+data<-read.csv("C:/Users/carlo/Downloads/archive (1)/Dataset of Diabetes .csv")
+dim(data)
+head(data)
+```
+
+### **2. Fit a logistic regression model with all predictors**
+
+**I created a new binary classification variable named class2, which takes the value '1' if the observation is classified as 'Y' (Diabetic) in the original CLASS variable, and 0 otherwise**
+
+For this part of the analysis, I used *class2* as the response variable instead of *CLASS*, which was not included in the model. The variable ID was also excluded, as it serves solely as a unique identifier for each observation and does not provide predictive value.
+
+I began by examining the dataset and identified inconsistencies in the categorical variables *Gender* and *CLASS*. For instance, the Gender variable included both 'F' and 'f' to represent 'Female', indicating a case sensitivity issue. I cleaned and standardized these values to ensure consistency across the dataset. After cleaning, I proceeded to test the model using all available variables.
+
+```{r echo=TRUE}
+
+data<-na.omit(data)
+summary(data)
+unique(data$Gender)
+unique(data$CLASS)
+
+data$Gender<-toupper(data$Gender)
+
+data$CLASS<-trimws(data$CLASS)
+data$CLASS<-as.factor(data$CLASS)
+data$class2<-ifelse(data$CLASS=='Y',1,0)
+
+unique(data$Gender)
+unique(data$CLASS)
+
+summary(data)
+names(data)
+fit<-glm(class2~No_Pation+Gender+AGE+Urea+Cr+HbA1c+
+           Chol+TG+HDL+LDL+VLDL+BMI,data,family=binomial)
+summary(fit)
+
+fit$coefficients[1]
+
+```
+
+Then, I got the model:
+
+$$logit[P(Y=1)]=`r fit$coefficients[1]` + `r fit$coefficients[2]`X_{NP} + `r fit$coefficients[3]`X_{G} + `r fit$coefficients[4]`X_{A} + `r fit$coefficients[5]`X_{U} + `r fit$coefficients[6]`X_{Cr} + `r fit$coefficients[7]`X_{HbA1c} + `r fit$coefficients[8]`X_{Chol} + `r fit$coefficients[9]`X_{TG} + `r fit$coefficients[10]`X_{HDL} + `r fit$coefficients[11]`X_{LDL} + `r fit$coefficients[12]`X_{VLDL} + `r fit$coefficients[13]`X_{BMI}$$
+
+### **3. Select the best subset of variables. Perform a diagnostic on the best model.  Perform all possible inferences you can think about. Perform goodness of fit tests. Find confidence intervals for multiplicative effects.**
+
+To identify the most relevant predictors for the classification task, I initially applied the stepAIC() function, which performs stepwise model selection based on the Akaike Information Criterion (AIC).
+
+
+*3.1. Select the best subset of variables:*
+
+```{r echo=TRUE}
+
+library(MASS)
+
+stepAIC(fit)
+
+```
+
+Subsequently, I fitted a logistic regression model using the subset of variables selected by the stepAIC() procedure.
+
+*3.2. Perform a diagnostic on the best model:*
+
+```{r echo=TRUE}
+
+fit2<-glm(class2 ~ AGE + Urea + HbA1c + Chol + VLDL + BMI,
+          family = binomial, data = data)
+
+summary(fit2)
+
+a=fit2$coefficients[1]
+b1=fit2$coefficients[2]
+b2=fit2$coefficients[3]
+b3=fit2$coefficients[4]
+b4=fit2$coefficients[5]
+b5=fit2$coefficients[6]
+b6=fit2$coefficients[7]
+
+```
+
+*3.3. Perform all possible inferences you can think about:*
+
+Let's perform the following hypotheses:
+
+$H_0: \beta_i=0$ for i=1,...,6 (Since we have 6 variables)
+
+$H_0: \beta_i\ne0$ for i=1,...,6 
+
+Based on the p-values obtained from the logistic regression model, we reject the null hypothesis (that the coefficient is equal to zero) for all variables except Urea, which has a p-value of 0.09081.
+
+Additionally, all estimated coefficients in the model are positive, indicating that increases in these predictor variables are associated with higher odds of being diabetic. In other words, as any of these variables increase the likelihood of a patient being classified as diabetic also increases, holding all other variables constant.
+
+- AGE: low p-value<0.05, then it is statistically significant and we can say that older age increases the odds of being diabetic since the estimate is positive.
+
+- Urea: p-value>0.05, then it is not statistically significant at 0.05 level and we can say that higher urea might increase the odds, but evidence is weak.
+
+- HbA1c: p-value is almost zero, then it is highly significant. A higher HbA1c strongly increases the probability of being diabetic.
+
+- Chol: p-value approximately zero, then it is highly significant. Higher cholesterol is strongly associated with diabetes.
+
+- VLDL: p-value<0.05, then it is statistically significant. Higher VLDL levels are associated with greater odds of diabetes.
+
+-BMI: p-value cloase to zero, then it is highly significant and we can say that an increased BMI is strongly associated with a higher risk of diabetes.
+
+- The intercept is large and negative (-25.19109), indicating that the baseline log-odds of being diabetic (when all predictors are zero) is extremely low, which makes sense given the context.
+
+*3.4. Perform goodness of fit tests.*
+
+$H_0: logit[P(Y=1)]=\alpha$
+
+$H_1: logit[P(Y=1)]=\alpha+\beta_1X_{Age}+\beta_2X_{Urea}+\beta_3X_{HbA1c}+\beta_4X_{Chol}+\beta_5X_{VLDL}+\beta_6X_{BMI}$
+
+
+```{r echo=TRUE}
+
+fit_null = glm(class2 ~ 1, family = "binomial", data = data) 
+anova(fit2, fit_null, test = "LRT")
+
+```
+
+Since we have a very small p-value that is less than a 0.001 level of significance, we have very strong evidence to reject the null hypothesis and conclude that our model is adequate.
+
+*3.5. Find confidence intervals for multiplicative effects.*
+
+```{r echo=TRUE}
+
+ci.fit2<-confint(fit2,level=0.95)
+
+mult_ef<-as.matrix(round(exp(ci.fit2),2))
+mult_ef
+
+```
+
+As we can see, the confidence intervals for the multiplicative effects (odds ratios) of all variables, except for Urea, do not contain the value 1. This indicates that these variables have a statistically significant effect on the odds of being classified as diabetic. In contrast, the confidence interval for Urea includes 1, suggesting that its effect is not statistically significant. This conclusion aligns with the interpretation based on the p-values.
+
+### **4. Use the new model to make predictions.**
+
+We can use the predict() function to make predictions.
+
+```{r echo=TRUE}
+
+predicted<-as.numeric(fitted(fit2) > 0.5)
+predicted
+
+```
+
+### **5. Use different pi_0 as a cut-off point and create a confusion table.**
+
+First, I used $\pi_0=0.5$
+
+```{r echo=TRUE}
+
+y = as.numeric(data$class2 > 0)
+predicted5.1 <- as.numeric(fitted(fit2) > 0.5)
+(confusion1 = addmargins(table(y, predicted5.1), 2)) 
+
+n11 = confusion1[1,1] 
+n12 = confusion1[1,2] 
+n1r = confusion1[1,3] 
+n21 = confusion1[2,1] 
+n22 = confusion1[2,2] 
+n2r = confusion1[2,3]
+
+```
+
+The second cut-off I used is: $\pi_0=\frac{Number(Y=1)}{n}$
+
+```{r echo=TRUE}
+
+prop = n2r/(n1r+n2r)
+prop
+y = as.numeric(data$class2 > 0)
+yhat = as.numeric(fitted(fit2) > prop)
+(confusion2 = addmargins(table(y, yhat), 2)) 
+
+m11 = confusion2[1,1] 
+m12 = confusion2[1,2] 
+m1r = confusion2[1,3] 
+m21 = confusion2[2,1] 
+m22 = confusion2[2,2] 
+m2r = confusion2[2,3] 
+
+# metrics for confusion1 
+sens1 = n22 / n2r 
+spec1 = n11 / n1r 
+acc1 = (n11 + n22) / (n1r + n2r) 
+err1 = (n12 + n21) / (n1r + n2r)
+
+# metrics for confusion2
+sens2 = m22 / m2r 
+spec2 = m11 / m1r 
+acc2 = (m11 + m22) / (m1r + m2r) 
+err2 = (m12 + m21) / (m1r + m2r)
+
+
+metrics.df = data.frame(Table = c("Confusion 1", "Confusion 2"), 
+                        Sensitivity = c(sens1, sens2), 
+                        Specificity = c(spec1, spec2), 
+                        Accuracy = c(acc1, acc2), 
+                        Error = c(err1, err2)) 
+metrics.df
+
+
+```
+
+The 0.5 cutoff yields slightly higher sensitivity (96.1%), meaning the model is better at correctly identifying diabetic patients. However, this comes with lower specificity (83.3%), leading to more false positives.
+
+The 0.844 cutoff significantly improves specificity (96.2%), reducing false positives, but slightly decreases sensitivity (93.6%), which means a few more diabetic cases may be missed.
+
+Accuracy is very similar in both cases (94.1% vs. 94.0%), as is the error rate (5.9% vs. 6.0%), suggesting that the overall performance of the model is stable across these thresholds.
+
+### **6. Perform visualization of data and models.**
+
+```{r echo=TRUE}
+
+diabetesyes=subset(data, class2==1) 
+diabetesno=subset(data, class2==0) 
+
+par(mfrow=c(1,2))
+boxplot(list(no=diabetesno$AGE,yes=diabetesyes$AGE),main='AGE') 
+boxplot(list(no=diabetesno$Urea,yes=diabetesyes$Urea),main='Urea') 
+
+par(mfrow=c(1,2))
+boxplot(list(no=diabetesno$HbA1c,yes=diabetesyes$HbA1c),main='HbA1c') 
+boxplot(list(no=diabetesno$Chol,yes=diabetesyes$Chol),main='Cholesterol') 
+
+par(mfrow=c(1,2))
+boxplot(list(no=diabetesno$VLDL,yes=diabetesyes$VLDL),main='VLDL') 
+boxplot(list(no=diabetesno$BMI,yes=diabetesyes$BMI),main='BMI') 
+
+```
+
+The boxplots suggest that all variables, except for Urea, appear to have an observable effect on the response variable class2, indicating that higher values of these predictors are associated with an increased probability of being diabetic.
+
+### **7. Plot the ROC curve, find AUC, and the best cutoff point for classification.**
+
+```{r echo=TRUE}
+
+library(Epi)
+roc<-ROC(form=class2 ~ AGE + Urea + HbA1c + Chol + VLDL + BMI,
+                data = data, plot = "ROC")
+
+```
+
+![A better look at ROC](C:/Users/carlo/Documents/SFSU/2nd Semester/Math 449 - Categorical Data Analysis/Project_449/Pic1.jpg)
+
+- According to ROC, the best cut-off point for classification is 0.897.
+
+- An AUC of 0.983 suggests that the model has a 98.3% chance of correctly distinguishing a randomly selected diabetic patient from a non-diabetic one.
+
+### **8. Perform LOOCV and k-fold cross-validation.**
+
+```{r echo=TRUE}
+
+#leave one out cross-validation
+pihat <- vector(length=1000)
+for (i in 1:1000) {
+   pihat[i] <-
+     predict(update(fit2, subset=-i),
+             newdata=data[i,], type="response")
+}
+ 
+yy <- as.numeric(data$class2 > 0)
+yhat <- as.numeric(pihat>prop)
+xtabs(~ yy + yhat)
+
+accuracy2<-mean(yy==yhat)
+accuracy2
+error2<-1-accuracy2
+error2
+
+#k-fold cross-validation
+library(boot)
+cost<-function(r,pi=0) mean(abs(r-pi)>prop)
+out=cv.glm(data,fit2,cost,K=10)
+out$delta
+
+```
+
+
+Leave-One-Out Cross-Validation (LOOCV) resulted in an error rate of 0.063
+
+10-Fold Cross-Validation resulted in a lower error rate of 0.018
+
+The logistic regression model demonstrates strong predictive performance, particularly when evaluated using 10-fold cross-validation, with an estimated misclassification rate of just 1.8%. This supports the model’s robustness for classifying diabetes status.
+
+### **9. Try the probit link and the identity links to model data.  
+
+```{r echo=TRUE}
+
+#Part9
+
+fit_probit <- glm(class2 ~ AGE + Urea + HbA1c + Chol + VLDL + BMI, 
+                  data = data, 
+                  family = binomial(link = "probit"))
+
+summary(fit_probit)
+
+
+#fit_identity <- glm(class2 ~ AGE + Urea + HbA1c + Chol + VLDL + BMI,                     data = data, family = binomial(link = "identity"))
+
+#summary(fit_identity)
+
+```
+
+- HbA1c, BMI, and Chol are the most influential predictors, with high significance and relatively large coefficients.
+
+- Urea again appears as not statistically significant, reinforcing previous findings from the logistic model.
+
+- All coefficients are positive, meaning increases in these predictors are associated with higher probability of diabetes.
+
+With this dataset, the identity link function could not be used successfully, likely due to convergence issues or multicollinearity among the predictors. As a result, the probit link proves to be a more suitable choice for modeling the data.
